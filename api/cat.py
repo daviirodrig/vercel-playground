@@ -13,11 +13,16 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
         # get query parameters froms self.path
-        query = self.path.split("?")[1].split("&")
-        query_dict = {}
-        for q in query:
-            key, value = q.split("=")
-            query_dict[key] = value
+        query_string = self.path.split("?")
+        if len(query_string) > 1:
+            query_params = query_string[1].split("&")
+            query_dict = {}
+            for q in query_params:
+                key, value = q.split("=")
+                query_dict[key] = value
+        else:
+            query_dict = {}
+
 
         cat_img = self.get_image("2023-04-18-02-41-39cat.jpeg")
 
