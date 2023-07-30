@@ -2,7 +2,9 @@
 import contextlib
 import io
 
+import ffmpeg
 from flask import Flask, Response, request
+from rich import print
 from yt_dlp import YoutubeDL as yt_dlp
 from yt_dlp import utils
 
@@ -18,7 +20,7 @@ def get():
     yt_dlp_config = {
         "extract_flat": "discard_in_playlist",
         "final_ext": "webm",
-        "format": "bestaudio/best",
+        "format": "mp3/bestaudio/best",
         "fragment_retries": 10,
         "ignoreerrors": "only_download",
         "max_downloads": 1,
@@ -27,15 +29,13 @@ def get():
         "outtmpl": "-",
         "logtostderr": True,
         "playlistend": 1,
-        # "postprocessors": [
-        #     {
-        #         "key": "FFmpegExtractAudio",
-        #         "nopostoverwrites": False,
-        #         "preferredcodec": "m4a",
-        #         "preferredquality": "5",
-        #     },
-        #     {"key": "FFmpegConcat", "only_multi_video": True, "when": "playlist"},
-        # ],
+        "postprocessors": [
+            {
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": "mp3",
+                "preferredquality": "192",
+            }
+        ],
         "retries": 10,
     }
     buffer = io.BytesIO()
@@ -48,10 +48,25 @@ def get():
         except utils.MaxDownloadsReached:
             pass
 
+
+    process = (
+        ffmpeg.input("pipe:")
+        .output(filename="./compress.tmp.mp3", c='libmp3lame', audio_bitrate='128k')
+        .run_async(pipe_stdin=True, overwrite_output=True)
+    )
+
+
+    process.communicate(input=buffer.getbuffer())
+
+    with open("./compress.tmp.mp3", "rb") as f:
+        ffbuffer = io.BytesIO(f.read())
+
+
+    print(len(ffbuffer.getvalue()) / 1024)
     return Response(
-        buffer.getvalue(),
-        mimetype="audio/webm",
-        headers={"Content-Disposition": f"attachment; filename={id}.webm"},
+        ffbuffer.getvalue(),
+        mimetype="audio/mp3",
+        headers={"Content-Disposition": f"attachment; filename={id}.mp3"},
         direct_passthrough=True,
         status=200,
     )
